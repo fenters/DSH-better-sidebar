@@ -11,6 +11,7 @@
  * Zero new dependencies: react-icons is already a peer of this plugin.
  */
 import type { ReactNode } from 'react'
+import type { FileIconTheme } from './service.ts'
 import {
   SiReact, SiVuedotjs, SiTypescript, SiJavascript, SiPython, SiGo,
   SiRust, SiPhp, SiHtml5, SiCss, SiSass, SiLess, SiSvelte, SiAstro,
@@ -334,14 +335,38 @@ const FOLDER_COLOR: Record<string, string> = {
   '.astro': '#FF5E00',
 }
 
+// ── Active theme override ────────────────────────────────────────────────
+// The sidebar sets the active file-icon theme (selected by the user in
+// settings) via setActiveFileIconTheme. When set, its resolvers are called
+// FIRST; returning undefined falls through to the built-in mapping below.
+let activeTheme: FileIconTheme | undefined
+
+/**
+ * Set the active file-icon theme (called by the Sidebar shell on mount and
+ * whenever the user's selection or the registry changes). Pass undefined to
+ * revert to the built-in mapping only.
+ */
+export function setActiveFileIconTheme(theme: FileIconTheme | undefined): void {
+  activeTheme = theme
+}
+
 // ── Public lookup functions ──────────────────────────────────────────────
 
 /**
- * Pick a colored, type-specific icon for one filename: exact-name match
- * first (so `package.json` beats the `.json` extension), then extension,
- * then the generic file glyph. Directories are handled by {@link folderIcon}.
+ * Pick a colored, type-specific icon for one filename: the active theme's
+ * resolver is tried first (if set); returning undefined falls through to
+ * the built-in exact-name match, then extension match, then the generic
+ * file glyph. Directories are handled by {@link folderIcon}.
  */
 export function fileIcon(name: string): ReactNode {
+  if (activeTheme?.fileIcon !== undefined) {
+    try {
+      const custom = activeTheme.fileIcon(name)
+      if (custom !== undefined) return custom
+    } catch {
+      // A throwing theme resolver falls through to the built-in mapping.
+    }
+  }
   const byName = FILE_ICON_BY_NAME[name]
   if (byName !== undefined) return colored(byName)
   const dot = name.lastIndexOf('.')
@@ -352,13 +377,40 @@ export function fileIcon(name: string): ReactNode {
 }
 
 /**
- * Pick a (possibly colored) folder icon for one directory name. Special
- * folders (node_modules, src, .git, …) get a tinted folder glyph; regular
- * folders follow the theme's label color (no override).
+ * Pick a (possibly colored) folder icon for one directory name: the active
+ * theme's resolver is tried first; returning undefined falls through to the
+ * built-in tinted folder mapping. Regular folders follow the theme's label
+ * color (no override).
  */
 export function folderIcon(name: string, isOpen: boolean): ReactNode {
+  if (activeTheme?.folderIcon !== undefined) {
+    try {
+      const custom = activeTheme.folderIcon(name, isOpen)
+      if (custom !== undefined) return custom
+    } catch {
+      // A throwing theme resolver falls through to the built-in mapping.
+    }
+  }
   const tint = FOLDER_COLOR[name]
   const Icon = isOpen ? VscFolderOpened : VscFolder
   if (tint !== undefined) return <Icon size={14} style={{ color: tint }} />
   return <Icon size={14} />
+}
+
+/**
+ * The built-in file-icon theme, registered as id `'builtin'` so it appears
+ * in the settings dropdown alongside any external plugin themes. Its
+ * resolvers delegate to the {@link fileIcon} / {@link folderIcon} functions
+ * above (which already implement the full built-in mapping with active-theme
+ * override). External themes can return undefined to fall through to this.
+ */
+export const BUILTIN_FILE_ICON_THEME: FileIconTheme = {
+  id: 'builtin',
+  name: 'Seti + Brand (built-in)',
+  // The built-in theme IS the fallback mapping — its resolvers return
+  // undefined so the fileIcon/folderIcon functions handle everything.
+  // This keeps the theme selectable in settings without duplicating the
+  // mapping logic.
+  fileIcon: () => undefined,
+  folderIcon: () => undefined,
 }

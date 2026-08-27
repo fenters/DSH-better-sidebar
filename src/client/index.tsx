@@ -15,6 +15,7 @@ import { allLeaves, createSidebarStore, isAgentTabId } from './state.ts'
 import { createBetterSidebarService, matchUrlTarget } from './service.ts'
 import { revalidateChunksOnReactivate, setChunkModuleSystem } from './chunk-loader.ts'
 import { registerBuiltins } from './builtins/index.ts'
+import { BUILTIN_FILE_ICON_THEME, setActiveFileIconTheme } from './file-icons.tsx'
 import { Sidebar } from './Sidebar.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
 import { registerOpenPathInterception, registerTurnTailInterception } from './intercept.tsx'
@@ -149,6 +150,25 @@ export function apply(ctx: Context): void {
     () => registerBuiltins(ctx, service, { terminalTitle: () => terminalTitle }),
     'dsh-better-sidebar: register built-in tabs and viewers',
   )
+  // Register the built-in file-icon theme (id 'builtin') so it appears in
+  // the settings dropdown alongside any external plugin themes. External
+  // themes can return undefined from their resolvers to fall through to
+  // this built-in mapping.
+  ctx.effect(
+    () => service.registerFileIconTheme(BUILTIN_FILE_ICON_THEME),
+    'dsh-better-sidebar: register built-in file-icon theme',
+  )
+  // Keep the file-icons module's active-theme pointer in sync with the
+  // service: the user's selection (prefs.fileIconThemeId) and the registry
+  // (plugin load/unload) both change the active theme. The file tree reads
+  // the active theme through the module-level setActiveFileIconTheme pointer
+  // on every row render, so this effect + the service's subscribe cover all
+  // changes without threading the service through every component.
+  ctx.effect(() => {
+    const sync = (): void => { setActiveFileIconTheme(service.getActiveFileIconTheme()) }
+    sync()
+    return service.subscribe(sync)
+  }, 'dsh-better-sidebar: sync active file-icon theme')
   // A failure anywhere in the client lifecycle must never take the app down
   // silently: log with the plugin prefix and pin a visible diagnostic strip
   // to the page so a blank panel is never the only symptom.
