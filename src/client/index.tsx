@@ -15,7 +15,7 @@ import { allLeaves, createSidebarStore, isAgentTabId } from './state.ts'
 import { createBetterSidebarService, matchUrlTarget } from './service.ts'
 import { revalidateChunksOnReactivate, setChunkModuleSystem } from './chunk-loader.ts'
 import { registerBuiltins } from './builtins/index.ts'
-import { BUILTIN_FILE_ICON_THEME, setActiveFileIconTheme } from './file-icons.tsx'
+import { BUILTIN_FILE_ICON_THEME, NONE_FILE_ICON_THEME, setActiveFileIconTheme } from './file-icons.tsx'
 import { Sidebar } from './Sidebar.tsx'
 import { RenderBoundary } from './RenderBoundary.tsx'
 import { registerOpenPathInterception, registerTurnTailInterception } from './intercept.tsx'
@@ -150,10 +150,18 @@ export function apply(ctx: Context): void {
     () => registerBuiltins(ctx, service, { terminalTitle: () => terminalTitle }),
     'dsh-better-sidebar: register built-in tabs and viewers',
   )
-  // Register the built-in file-icon theme (id 'builtin') so it appears in
-  // the settings dropdown alongside any external plugin themes. External
-  // themes can return undefined from their resolvers to fall through to
-  // this built-in mapping.
+  // Register the built-in file-icon themes so they appear in the settings
+  // dropdown alongside any external plugin themes. Two built-in themes:
+  // - 'none' (default): original look — generic VscFile for all files,
+  //   plain VscFolder for all folders, no color tints. Users who never
+  //   touch the setting see zero change from before this feature.
+  // - 'builtin': brand-colored file icons + per-folder-name color tints.
+  // External themes can return undefined from their resolvers to fall
+  // through to the built-in mapping.
+  ctx.effect(
+    () => service.registerFileIconTheme(NONE_FILE_ICON_THEME),
+    'dsh-better-sidebar: register none file-icon theme',
+  )
   ctx.effect(
     () => service.registerFileIconTheme(BUILTIN_FILE_ICON_THEME),
     'dsh-better-sidebar: register built-in file-icon theme',

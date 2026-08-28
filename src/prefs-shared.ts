@@ -274,7 +274,7 @@ export const SIDEBAR_PREFS_DEFAULTS: SidebarPrefs = {
   browserInterceptHttp: true,
   browserInterceptHttps: false,
   browserAllowedLoopback: '',
-  fileIconThemeId: 'builtin',
+  fileIconThemeId: 'none',
   tabsEnabled: {},
   viewersEnabled: {},
   pluginSettings: {},
