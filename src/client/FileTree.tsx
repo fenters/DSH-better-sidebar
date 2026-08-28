@@ -20,7 +20,7 @@
  * (VSCode semantics — a drop on a file row targets its parent directory),
  * and `busy` gates new drags while one upload is in flight.
  */
-import { useCallback, useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
@@ -36,7 +36,7 @@ import { relativeTo } from './paths.ts'
 import { t } from './locales.ts'
 import { uploadItemsFromDrop, uploadItemsFromFiles, type UploadItem } from './upload.ts'
 import css from './sidebar.module.css'
-import { fileIcon, folderIcon } from './file-icons.tsx'
+import { fileIcon, folderIcon, subscribeFileIconTheme, getFileIconThemeRevision } from './file-icons.tsx'
 
 interface LevelData {
   entries?: FsEntry[]
@@ -138,6 +138,10 @@ export function FileTree(props: {
   busy: boolean
 }) {
   const { sessionId, cwd, expanded, revealed, onToggle, onOpenFile, onOpenFileNewTab, onOpenFileSide, openWithTargets, openWithPinned, openWithSsh, onOpenWith, onToggleOpenWithPin, onReferenceFile, refreshTick, onUploadRequest, busy } = props
+  // Force re-render when the file-icon theme changes (the module-level
+  // activeTheme pointer is not React state, so memoized subtrees like
+  // TabContent would skip re-rendering without this subscription).
+  useSyncExternalStore(subscribeFileIconTheme, getFileIconThemeRevision)
   const [data, setData] = useState<Record<string, LevelData>>({})
   const dataRef = useRef(data)
   /** The row whose path was just copied ("copied" label replaces its button). */

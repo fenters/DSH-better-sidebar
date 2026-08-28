@@ -709,9 +709,31 @@ const FOLDER_COLOR: Record<string, string> = {
 //   563-entry colored mapping.
 // - External themes: return ReactNode or undefined (fall through).
 let activeTheme: FileIconTheme | undefined
+let themeRevision = 0
+const themeListeners = new Set<() => void>()
 
+/**
+ * Set the active file-icon theme. Called by the Sidebar shell on mount and
+ * whenever the user's selection or the registry changes.
+ */
 export function setActiveFileIconTheme(theme: FileIconTheme | undefined): void {
   activeTheme = theme
+  themeRevision++
+  for (const fn of [...themeListeners]) fn()
+}
+
+/**
+ * Subscribe to file-icon theme changes (for useSyncExternalStore in
+ * components that render icons and need to re-render on theme switch).
+ */
+export function subscribeFileIconTheme(listener: () => void): () => void {
+  themeListeners.add(listener)
+  return () => { themeListeners.delete(listener) }
+}
+
+/** The current theme revision (changes on every setActiveFileIconTheme call). */
+export function getFileIconThemeRevision(): number {
+  return themeRevision
 }
 
 // ── Public lookup functions ──────────────────────────────────────────────
