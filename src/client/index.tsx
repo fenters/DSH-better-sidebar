@@ -167,15 +167,21 @@ export function apply(ctx: Context): void {
     'dsh-better-sidebar: register built-in file-icon theme',
   )
   // Keep the file-icons module's active-theme pointer in sync with the
-  // service: the user's selection (prefs.fileIconThemeId) and the registry
-  // (plugin load/unload) both change the active theme. The file tree reads
-  // the active theme through the module-level setActiveFileIconTheme pointer
-  // on every row render, so this effect + the service's subscribe cover all
-  // changes without threading the service through every component.
+  // service. Two subscription channels are needed:
+  // - service.subscribe: fires when a theme is registered/disposed (plugin
+  //   load/unload) — the active theme might become available/unavailable.
+  // - service.subscribeState: fires when the user's prefs change (theme
+  //   selection in settings) — getActiveFileIconTheme reads
+  //   prefs.fileIconThemeId, so the pointer must update on every prefs write.
+  // The file tree reads the module-level pointer on every row render, so
+  // the Sidebar's re-render (triggered by the same store update) picks up
+  // the new theme immediately — no page refresh needed.
   ctx.effect(() => {
     const sync = (): void => { setActiveFileIconTheme(service.getActiveFileIconTheme()) }
     sync()
-    return service.subscribe(sync)
+    const unsubRegistry = service.subscribe(sync)
+    const unsubState = service.subscribeState(sync)
+    return () => { unsubRegistry(); unsubState() }
   }, 'dsh-better-sidebar: sync active file-icon theme')
   // A failure anywhere in the client lifecycle must never take the app down
   // silently: log with the plugin prefix and pin a visible diagnostic strip
