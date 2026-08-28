@@ -1,4 +1,4 @@
-# dsh-better-sidebar 图标主题开发指南
+﻿# dsh-better-sidebar 图标主题开发指南
 
 > 面向**插件开发者**：如何为 dsh-better-sidebar 的文件树注册自定义图标主题，实现类似 VSCode 图标主题切换的能力。
 
