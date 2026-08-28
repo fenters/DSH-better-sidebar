@@ -701,28 +701,22 @@ const FOLDER_COLOR: Record<string, string> = {
 
 // ── Active theme override ────────────────────────────────────────────────
 // The sidebar sets the active file-icon theme (selected by the user in
-// settings) via setActiveFileIconTheme. Three behaviors:
-// - undefined: no theme set → use the built-in mapping (colored icons)
-// - NONE theme (id 'none'): resolvers return null → skip the mapping,
-//   render the original generic VscFile / VscFolder (pre-change behavior)
-// - any other theme: resolvers return ReactNode or undefined (fall through)
+// settings) via setActiveFileIconTheme. The active theme's resolvers are
+// called FIRST; returning undefined falls through to the built-in mapping.
+// - 'none' theme: resolvers return generic VscFile/VscFolder directly →
+//   never reaches the mapping → original look.
+// - 'builtin' theme: resolvers return undefined → falls through to the
+//   563-entry colored mapping.
+// - External themes: return ReactNode or undefined (fall through).
 let activeTheme: FileIconTheme | undefined
 
 export function setActiveFileIconTheme(theme: FileIconTheme | undefined): void {
   activeTheme = theme
 }
 
-/** Whether the active theme is the "no icons" (original) theme. */
-function isActiveNone(): boolean {
-  return activeTheme?.id === 'none'
-}
-
 // ── Public lookup functions ──────────────────────────────────────────────
 
 export function fileIcon(name: string): ReactNode {
-  // The "none" theme restores the original behavior: a single generic file
-  // glyph for every file, no type-specific colored icons.
-  if (isActiveNone()) return <VscFile size={14} />
   if (activeTheme?.fileIcon !== undefined) {
     try {
       const custom = activeTheme.fileIcon(name)
@@ -739,12 +733,6 @@ export function fileIcon(name: string): ReactNode {
 }
 
 export function folderIcon(name: string, isOpen: boolean): ReactNode {
-  // The "none" theme restores the original behavior: plain folder glyphs
-  // with no per-name color tints.
-  if (isActiveNone()) {
-    const Icon = isOpen ? VscFolderOpened : VscFolder
-    return <Icon size={14} />
-  }
   if (activeTheme?.folderIcon !== undefined) {
     try {
       const custom = activeTheme.folderIcon(name, isOpen)
@@ -758,23 +746,25 @@ export function folderIcon(name: string, isOpen: boolean): ReactNode {
 }
 
 /**
- * The "no icons" theme (id 'none'): restores the original file-tree look
- * — a single generic VscFile glyph for all files, plain VscFolder for all
- * folders, no color tints. This is the DEFAULT theme so users who never
- * touch the setting see zero change from before this feature.
+ * The "no icons" theme (id 'none'): restores the original file-tree look.
+ * Its resolvers return generic glyphs directly, so the built-in mapping
+ * is never reached. This is the DEFAULT theme — users who never touch
+ * the setting see zero change from before this feature.
  */
 export const NONE_FILE_ICON_THEME: FileIconTheme = {
   id: 'none',
   name: 'None (original)',
-  fileIcon: () => undefined,
-  folderIcon: () => undefined,
+  fileIcon: () => <VscFile size={14} />,
+  folderIcon: (_name: string, isOpen: boolean) => {
+    const Icon = isOpen ? VscFolderOpened : VscFolder
+    return <Icon size={14} />
+  },
 }
 
 /**
  * The built-in colored icon theme (id 'builtin'): brand-colored file icons
  * + per-folder-name color tints. Its resolvers return undefined so the
- * fileIcon/folderIcon functions handle everything (the activeTheme check
-// for 'none' short-circuits before reaching here).
+ * fileIcon/folderIcon functions handle everything through the mapping.
  */
 export const BUILTIN_FILE_ICON_THEME: FileIconTheme = {
   id: 'builtin',
